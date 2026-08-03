@@ -22,8 +22,5 @@ func New(cfg *config.Config, hub *websocket.Hub) http.Handler {
 
 	r.Get("/ws", handler.WsHandler(hub))
 
-	chat := handler.NewChat(hub.DB())
-	r.Post("/api/chat", chat.Send())
-
 	return r
 }
