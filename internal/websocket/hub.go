@@ -88,6 +88,17 @@ func (h *Hub) IsOnline(userID int64) bool {
 	return len(h.online[userID]) > 0
 }
 
+func (h *Hub) OnlineUserIDs() []int64 {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	ids := make([]int64, 0, len(h.online))
+	for id := range h.online {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
 type presenceEvent struct {
 	UserID int64  `json:"user_id"`
 	Status string `json:"status"`
