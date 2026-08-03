@@ -7,6 +7,7 @@ type Config struct {
 	DBPath         string `env:"DB_PATH" envDefault:"surimbim.db"`
 	DBMaxOpenConns int    `env:"DB_MAX_OPEN_CONNS" envDefault:"5"`
 	DBMaxIdleConns int    `env:"DB_MAX_IDLE_CONNS" envDefault:"5"`
+	ENV            string `env:"ENV" envDefault:"dev"`
 }
 
 func Load() *Config {

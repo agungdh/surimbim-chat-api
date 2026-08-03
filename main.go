@@ -23,7 +23,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	handler := router.New(db)
+	handler := router.New(cfg, db)
 
 	log.Printf("listening on :%s", cfg.Port)
 	if err := http.ListenAndServe(":"+cfg.Port, handler); err != nil {
