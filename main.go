@@ -9,6 +9,7 @@ import (
 	"surimbim-chat-api/internal/config"
 	"surimbim-chat-api/internal/database"
 	"surimbim-chat-api/internal/router"
+	"surimbim-chat-api/internal/websocket"
 )
 
 func main() {
@@ -23,7 +24,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	handler := router.New(cfg, db)
+	hub := websocket.NewHub(db)
+
+	handler := router.New(cfg, hub)
 
 	log.Printf("listening on :%s", cfg.Port)
 	if err := http.ListenAndServe(":"+cfg.Port, handler); err != nil {

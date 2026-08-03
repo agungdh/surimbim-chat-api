@@ -5,12 +5,12 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/uptrace/bun"
 	"surimbim-chat-api/internal/config"
 	"surimbim-chat-api/internal/handler"
+	"surimbim-chat-api/internal/websocket"
 )
 
-func New(cfg *config.Config, db *bun.DB) http.Handler {
+func New(cfg *config.Config, hub *websocket.Hub) http.Handler {
 	r := chi.NewRouter()
 
 	if cfg.ENV != "prod" {
@@ -20,7 +20,9 @@ func New(cfg *config.Config, db *bun.DB) http.Handler {
 
 	r.Get("/health", handler.Health())
 
-	chat := handler.NewChat(db)
+	r.Get("/ws", handler.WsHandler(hub))
+
+	chat := handler.NewChat(hub.DB())
 	r.Post("/api/chat", chat.Send())
 
 	return r
