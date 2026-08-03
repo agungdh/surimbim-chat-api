@@ -1,41 +1,18 @@
 package config
 
-import (
-	"os"
-	"strconv"
-)
+import "github.com/caarlos0/env/v11"
 
 type Config struct {
-	Port           string
-	DBPath         string
-	DBMaxOpenConns int
-	DBMaxIdleConns int
+	Port           string `env:"PORT" envDefault:"8080"`
+	DBPath         string `env:"DB_PATH" envDefault:"surimbim.db"`
+	DBMaxOpenConns int    `env:"DB_MAX_OPEN_CONNS" envDefault:"5"`
+	DBMaxIdleConns int    `env:"DB_MAX_IDLE_CONNS" envDefault:"5"`
 }
 
 func Load() *Config {
-	cfg := &Config{
-		Port:           "8080",
-		DBPath:         "surimbim.db",
-		DBMaxOpenConns: 5,
-		DBMaxIdleConns: 5,
+	cfg := &Config{}
+	if err := env.Parse(cfg); err != nil {
+		panic(err)
 	}
-
-	if v := os.Getenv("PORT"); v != "" {
-		cfg.Port = v
-	}
-	if v := os.Getenv("DB_PATH"); v != "" {
-		cfg.DBPath = v
-	}
-	if v := os.Getenv("DB_MAX_OPEN_CONNS"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.DBMaxOpenConns = n
-		}
-	}
-	if v := os.Getenv("DB_MAX_IDLE_CONNS"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.DBMaxIdleConns = n
-		}
-	}
-
 	return cfg
 }
