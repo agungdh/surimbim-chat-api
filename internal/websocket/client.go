@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,14 +21,20 @@ const (
 )
 
 type Client struct {
-	id   string
-	hub  *Hub
-	conn *websocket.Conn
-	send chan *Frame
+	id        string
+	userID    int64
+	hub       *Hub
+	conn      *websocket.Conn
+	send      chan *Frame
+	closeOnce sync.Once
 }
 
 func (c *Client) ID() string {
 	return c.id
+}
+
+func (c *Client) UserID() int64 {
+	return c.userID
 }
 
 func (c *Client) Send(f *Frame) {
@@ -38,13 +45,17 @@ func (c *Client) Send(f *Frame) {
 }
 
 func (c *Client) Close() {
-	c.hub.RemoveClient(c)
-	c.conn.Close()
-	close(c.send)
+	c.closeOnce.Do(func() {
+		close(c.send)
+		c.hub.RemoveClient(c)
+	})
 }
 
 func (c *Client) readPump() {
-	defer c.Close()
+	defer func() {
+		c.Close()
+		c.conn.Close()
+	}()
 
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -66,16 +77,24 @@ func (c *Client) readPump() {
 			continue
 		}
 
+		if frame.Command == "CONNECT" || frame.Command == "STOMP" {
+			if uid := frame.Headers["user-id"]; uid != "" {
+				fmt.Sscanf(uid, "%d", &c.userID)
+			}
+			c.Send(ConnectFrame())
+			if c.userID != 0 {
+				c.hub.MarkOnline(c)
+			}
+			continue
+		}
+
 		c.hub.HandleFrame(c, frame)
 	}
 }
 
 func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
-	defer func() {
-		ticker.Stop()
-		c.conn.Close()
-	}()
+	defer ticker.Stop()
 
 	for {
 		select {
@@ -152,8 +171,6 @@ func NewClient(conn *websocket.Conn, hub *Hub) *Client {
 
 	go c.writePump()
 	go c.readPump()
-
-	c.Send(ConnectFrame())
 
 	return c
 }
