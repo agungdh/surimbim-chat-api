@@ -1,4 +1,5 @@
 .idea/
+.commandcode/
 *.db
 *.db-shm
 *.db-wal
