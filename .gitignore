@@ -1,1 +1,5 @@
 .idea/
+*.db
+*.db-shm
+*.db-wal
+surimbim-chat-api
