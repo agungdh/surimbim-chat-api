@@ -1,54 +1,26 @@
 package main
 
 import (
-	"database/sql"
 	"log"
 	"net/http"
-	"os"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/pressly/goose/v3"
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
+	"surimbim-chat-api/internal/config"
+	"surimbim-chat-api/internal/database"
+	"surimbim-chat-api/internal/router"
 )
 
 func main() {
-	sqldb, err := sql.Open(sqliteshim.ShimName, "file:surimbim.db?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)")
+	cfg := config.Load()
+
+	db, err := database.Connect(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer sqldb.Close()
 
-	sqldb.SetMaxOpenConns(5)
-	sqldb.SetMaxIdleConns(5)
+	handler := router.New(db)
 
-	if err := goose.SetDialect("sqlite3"); err != nil {
-		log.Fatal(err)
-	}
-	if err := goose.Up(sqldb, "migrations"); err != nil {
-		log.Fatal(err)
-	}
-
-	db := bun.NewDB(sqldb, sqlitedialect.New())
-	if err := db.Ping(); err != nil {
-		log.Fatal(err)
-	}
-
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("ok"))
-	})
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-	log.Printf("listening on :%s", port)
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+	log.Printf("listening on :%s", cfg.Port)
+	if err := http.ListenAndServe(":"+cfg.Port, handler); err != nil {
 		log.Fatal(err)
 	}
 }
