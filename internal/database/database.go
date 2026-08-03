@@ -9,6 +9,8 @@ import (
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 	"github.com/uptrace/bun/driver/sqliteshim"
 	"surimbim-chat-api/internal/config"
+
+	_ "surimbim-chat-api/migrations"
 )
 
 func Connect(cfg *config.Config) (*bun.DB, error) {
