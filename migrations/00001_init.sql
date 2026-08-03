@@ -1,10 +1,14 @@
 -- +goose Up
-CREATE TABLE IF NOT EXISTS messages (
+CREATE TABLE IF NOT EXISTS users (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id     INTEGER NOT NULL DEFAULT 0,
-    content     TEXT    NOT NULL,
+    username    TEXT    NOT NULL UNIQUE,
+    password    TEXT    NOT NULL,
+    name        TEXT    NOT NULL,
     created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+
 -- +goose Down
-DROP TABLE IF EXISTS messages;
+DROP INDEX IF EXISTS idx_users_username;
+DROP TABLE IF EXISTS users;
