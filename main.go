@@ -15,11 +15,14 @@ import (
 )
 
 func main() {
-	sqldb, err := sql.Open(sqliteshim.ShimName, "file:surimbim.db?_pragma=journal_mode(WAL)")
+	sqldb, err := sql.Open(sqliteshim.ShimName, "file:surimbim.db?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer sqldb.Close()
+
+	sqldb.SetMaxOpenConns(5)
+	sqldb.SetMaxIdleConns(5)
 
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		log.Fatal(err)
