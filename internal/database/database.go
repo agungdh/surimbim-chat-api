@@ -10,7 +10,7 @@ import (
 	"github.com/uptrace/bun/driver/sqliteshim"
 	"surimbim-chat-api/internal/config"
 
-	_ "surimbim-chat-api/migrations"
+	"surimbim-chat-api/migrations"
 )
 
 func Connect(cfg *config.Config) (*bun.DB, error) {
@@ -27,7 +27,8 @@ func Connect(cfg *config.Config) (*bun.DB, error) {
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		return nil, fmt.Errorf("goose set dialect: %w", err)
 	}
-	if err := goose.Up(sqldb, "migrations"); err != nil {
+	goose.SetBaseFS(migrations.SQLMigrations)
+	if err := goose.Up(sqldb, "."); err != nil {
 		return nil, fmt.Errorf("goose up: %w", err)
 	}
 
