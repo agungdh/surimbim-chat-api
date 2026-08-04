@@ -165,8 +165,7 @@ func (c *Client) writePump() {
 }
 
 type chatPayload struct {
-	Content  string `json:"content"`
-	ClientID string `json:"client_id"`
+	Content string `json:"content"`
 }
 
 func (h *Hub) routeSend(c *Client, dest string, frame *Frame) {
@@ -216,8 +215,8 @@ func (h *Hub) routeSend(c *Client, dest string, frame *Frame) {
 
 	topic := fmt.Sprintf("/topic/conversation.%d", msg.ConversationID)
 	respFrame := MessageFrame(topic, resp)
-	if payload.ClientID != "" {
-		respFrame.Headers["client-id"] = payload.ClientID
+	if clientID := frame.Headers["client-id"]; clientID != "" {
+		respFrame.Headers["client-id"] = clientID
 	}
 	h.Broadcast(topic, respFrame)
 }
