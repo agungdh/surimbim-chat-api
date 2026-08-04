@@ -29,6 +29,7 @@ func New(cfg *config.Config, hub *websocket.Hub) http.Handler {
 	r.Get("/ws", handler.WsHandler(hub))
 
 	r.With(mw.RequireAuth(ts)).Get("/api/users", handler.ListUsers(db))
+	r.With(mw.RequireAuth(ts)).Get("/api/conversation/{user_id}", handler.GetConversation(db))
 	r.Get("/api/users/active", handler.ListActiveUsers(db, hub))
 
 	return r
