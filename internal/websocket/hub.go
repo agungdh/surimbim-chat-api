@@ -147,7 +147,7 @@ func (h *Hub) HandleFrame(c *Client, frame *Frame) {
 
 		if convID, ok := conversationIDFromDest(dest); ok {
 			if !h.userInConversation(c.userID, convID) {
-				c.Send(ErrorFrame("forbidden"))
+				c.Send(ErrorFrameFor(frame, "forbidden"))
 				return
 			}
 		}

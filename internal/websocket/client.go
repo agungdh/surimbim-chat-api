@@ -175,17 +175,17 @@ func (h *Hub) routeSend(c *Client, dest string, frame *Frame) {
 
 	var payload chatPayload
 	if err := json.Unmarshal(frame.Body, &payload); err != nil {
-		c.Send(ErrorFrame("invalid json body"))
+		c.Send(ErrorFrameFor(frame, "invalid json body"))
 		return
 	}
 
 	if payload.Content == "" {
-		c.Send(ErrorFrame("content is required"))
+		c.Send(ErrorFrameFor(frame, "content is required"))
 		return
 	}
 
 	if !h.userInConversation(c.userID, payload.ConversationID) {
-		c.Send(ErrorFrame("forbidden"))
+		c.Send(ErrorFrameFor(frame, "forbidden"))
 		return
 	}
 
@@ -198,7 +198,7 @@ func (h *Hub) routeSend(c *Client, dest string, frame *Frame) {
 	_, err := h.db.NewInsert().Model(msg).Exec(context.Background())
 	if err != nil {
 		log.Printf("failed to save message: %v", err)
-		c.Send(ErrorFrame("failed to save message"))
+		c.Send(ErrorFrameFor(frame, "failed to save message"))
 		return
 	}
 
