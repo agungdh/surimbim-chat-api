@@ -2,8 +2,8 @@ package websocket
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -80,17 +80,13 @@ func (f *Frame) Serialize() []byte {
 }
 
 func ConnectFrame(userID int64) *Frame {
-	body, _ := json.Marshal(struct {
-		UserID int64 `json:"user_id"`
-	}{UserID: userID})
-
 	return &Frame{
 		Command: "CONNECTED",
 		Headers: map[string]string{
 			"version":    "1.2",
 			"heart-beat": "0,0",
+			"user-id":    strconv.FormatInt(userID, 10),
 		},
-		Body: body,
 	}
 }
 

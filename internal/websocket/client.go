@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 
@@ -164,12 +165,18 @@ func (c *Client) writePump() {
 }
 
 type chatPayload struct {
-	ConversationID int64  `json:"conversation_id"`
-	Content        string `json:"content"`
+	Content  string `json:"content"`
+	ClientID string `json:"client_id"`
 }
 
 func (h *Hub) routeSend(c *Client, dest string, frame *Frame) {
 	if dest != "/app/chat" {
+		return
+	}
+
+	convID, err := strconv.ParseInt(frame.Headers["conversation-id"], 10, 64)
+	if err != nil || convID == 0 {
+		c.Send(ErrorFrameFor(frame, "invalid conversation-id"))
 		return
 	}
 
@@ -184,18 +191,18 @@ func (h *Hub) routeSend(c *Client, dest string, frame *Frame) {
 		return
 	}
 
-	if !h.userInConversation(c.userID, payload.ConversationID) {
+	if !h.userInConversation(c.userID, convID) {
 		c.Send(ErrorFrameFor(frame, "forbidden"))
 		return
 	}
 
 	msg := &model.Message{
-		ConversationID: payload.ConversationID,
+		ConversationID: convID,
 		SenderID:       c.userID,
 		Content:        payload.Content,
 	}
 
-	_, err := h.db.NewInsert().Model(msg).Exec(context.Background())
+	_, err = h.db.NewInsert().Model(msg).Exec(context.Background())
 	if err != nil {
 		log.Printf("failed to save message: %v", err)
 		c.Send(ErrorFrameFor(frame, "failed to save message"))
@@ -208,7 +215,11 @@ func (h *Hub) routeSend(c *Client, dest string, frame *Frame) {
 	}
 
 	topic := fmt.Sprintf("/topic/conversation.%d", msg.ConversationID)
-	h.Broadcast(topic, MessageFrame(topic, resp))
+	respFrame := MessageFrame(topic, resp)
+	if payload.ClientID != "" {
+		respFrame.Headers["client-id"] = payload.ClientID
+	}
+	h.Broadcast(topic, respFrame)
 }
 
 func NewClient(conn *websocket.Conn, hub *Hub) *Client {
