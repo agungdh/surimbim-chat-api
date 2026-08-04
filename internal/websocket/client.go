@@ -46,6 +46,20 @@ func (c *Client) Send(f *Frame) {
 	}
 }
 
+func trySend(c *Client, f *Frame) (sent bool) {
+	defer func() {
+		if recover() != nil {
+			sent = false
+		}
+	}()
+	select {
+	case c.send <- f:
+		return true
+	default:
+		return false
+	}
+}
+
 func (c *Client) Close() {
 	c.closeOnce.Do(func() {
 		close(c.send)

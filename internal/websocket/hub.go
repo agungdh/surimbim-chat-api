@@ -127,9 +127,7 @@ func (h *Hub) Broadcast(topic string, frame *Frame) {
 
 	clients := h.subscribers[topic]
 	for c := range clients {
-		select {
-		case c.send <- frame:
-		default:
+		if !trySend(c, frame) {
 			go func(client *Client) {
 				client.Close()
 			}(c)
@@ -164,7 +162,12 @@ func (h *Hub) HandleFrame(c *Client, frame *Frame) {
 
 	case "SEND":
 		dest := frame.Headers["destination"]
-		h.routeSend(c, dest, frame)
+		switch dest {
+		case "/app/chat":
+			h.routeSend(c, dest, frame)
+		case "/app/history":
+			h.routeHistory(c, dest, frame)
+		}
 
 	case "DISCONNECT":
 		h.RemoveClient(c)
@@ -203,4 +206,45 @@ func (h *Hub) userInConversation(userID, convID int64) bool {
 	}
 
 	return conv.User1ID == userID || conv.User2ID == userID
+}
+
+func (h *Hub) routeHistory(c *Client, dest string, frame *Frame) {
+	if dest != "/app/history" {
+		return
+	}
+
+	convID, err := strconv.ParseInt(frame.Headers["conversation-id"], 10, 64)
+	if err != nil || convID == 0 {
+		c.Send(ErrorFrameFor(frame, "invalid conversation-id"))
+		return
+	}
+
+	if !h.userInConversation(c.userID, convID) {
+		c.Send(ErrorFrameFor(frame, "forbidden"))
+		return
+	}
+
+	var messages []model.Message
+	err = h.db.NewSelect().Model(&messages).
+		Where("conversation_id = ?", convID).
+		Order("id ASC").
+		Scan(context.Background())
+	if err != nil {
+		log.Printf("failed to load history: %v", err)
+		c.Send(ErrorFrameFor(frame, "failed to load history"))
+		return
+	}
+
+	resp, err := json.Marshal(messages)
+	if err != nil {
+		c.Send(ErrorFrameFor(frame, "failed to encode history"))
+		return
+	}
+
+	respFrame := MessageFrame("/app/history", resp)
+	respFrame.Headers["conversation-id"] = strconv.FormatInt(convID, 10)
+	if clientID := frame.Headers["client-id"]; clientID != "" {
+		respFrame.Headers["client-id"] = clientID
+	}
+	c.Send(respFrame)
 }
