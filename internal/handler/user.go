@@ -7,7 +7,27 @@ import (
 	"github.com/uptrace/bun"
 	"surimbim-chat-api/internal/model"
 	"surimbim-chat-api/internal/websocket"
+	mw "surimbim-chat-api/internal/middleware"
 )
+
+func Me(db *bun.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		myID := mw.UserIDFromCtx(r.Context())
+
+		var user model.User
+		err := db.NewSelect().Model(&user).
+			Column("id", "username", "name", "created_at").
+			Where("id = ?", myID).
+			Scan(r.Context())
+		if err != nil {
+			http.Error(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(user)
+	}
+}
 
 func ListUsers(db *bun.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

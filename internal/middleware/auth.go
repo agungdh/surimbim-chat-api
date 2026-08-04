@@ -15,14 +15,8 @@ const UserIDKey contextKey = "user_id"
 func RequireAuth(ts *auth.TokenStore) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
-				return
-			}
-
-			token, ok := strings.CutPrefix(authHeader, "Bearer ")
-			if !ok {
+			token := TokenFromRequest(r)
+			if token == "" {
 				http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 				return
 			}
@@ -37,6 +31,18 @@ func RequireAuth(ts *auth.TokenStore) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+func TokenFromRequest(r *http.Request) string {
+	if h := r.Header.Get("Authorization"); h != "" {
+		if t, ok := strings.CutPrefix(h, "Bearer "); ok {
+			return t
+		}
+	}
+	if c, err := r.Cookie("token"); err == nil {
+		return c.Value
+	}
+	return ""
 }
 
 func UserIDFromCtx(ctx context.Context) int64 {

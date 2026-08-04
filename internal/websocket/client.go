@@ -117,6 +117,9 @@ func (c *Client) readPump() {
 func (c *Client) authenticate(frame *Frame) bool {
 	token := frame.Headers["token"]
 	if token == "" {
+		token = c.token
+	}
+	if token == "" {
 		return false
 	}
 
@@ -235,12 +238,13 @@ func (h *Hub) routeSend(c *Client, dest string, frame *Frame) {
 	h.Broadcast(topic, respFrame)
 }
 
-func NewClient(conn *websocket.Conn, hub *Hub) *Client {
+func NewClient(conn *websocket.Conn, hub *Hub, token string) *Client {
 	c := &Client{
-		id:   uuid.New().String(),
-		hub:  hub,
-		conn: conn,
-		send: make(chan *Frame, 64),
+		id:    uuid.New().String(),
+		token: token,
+		hub:   hub,
+		conn:  conn,
+		send:  make(chan *Frame, 64),
 	}
 
 	go c.writePump()

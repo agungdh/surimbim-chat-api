@@ -3,9 +3,11 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/uptrace/bun"
 	"surimbim-chat-api/internal/auth"
+	"surimbim-chat-api/internal/config"
 	"surimbim-chat-api/internal/model"
 
 	"golang.org/x/crypto/bcrypt"
@@ -20,7 +22,7 @@ type loginResponse struct {
 	Token string `json:"token"`
 }
 
-func Login(db *bun.DB, ts *auth.TokenStore) http.HandlerFunc {
+func Login(db *bun.DB, ts *auth.TokenStore, cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req loginRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -47,7 +49,37 @@ func Login(db *bun.DB, ts *auth.TokenStore) http.HandlerFunc {
 
 		token := ts.Generate(user.ID)
 
+		cookie := &http.Cookie{
+			Name:     "token",
+			Value:    token,
+			Path:     "/",
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   int((24 * time.Hour).Seconds()),
+		}
+		if cfg.ENV == "prod" {
+			cookie.Secure = true
+		}
+		http.SetCookie(w, cookie)
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(loginResponse{Token: token})
+	}
+}
+
+func Logout(ts *auth.TokenStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if c, err := r.Cookie("token"); err == nil {
+			ts.Remove(c.Value)
+		}
+		http.SetCookie(w, &http.Cookie{
+			Name:     "token",
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   -1,
+		})
+		w.WriteHeader(http.StatusNoContent)
 	}
 }

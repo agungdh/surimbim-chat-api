@@ -22,6 +22,10 @@ func WsHandler(hub *wspkg.Hub) http.HandlerFunc {
 			return
 		}
 
-		wspkg.NewClient(conn, hub)
+		token := ""
+		if c, err := r.Cookie("token"); err == nil {
+			token = c.Value
+		}
+		wspkg.NewClient(conn, hub, token)
 	}
 }

@@ -24,11 +24,13 @@ func New(cfg *config.Config, hub *websocket.Hub) http.Handler {
 
 	r.Get("/health", handler.Health())
 
-	r.Post("/api/login", handler.Login(db, ts))
+	r.Post("/api/login", handler.Login(db, ts, cfg))
+	r.Post("/api/logout", handler.Logout(ts))
 
 	r.Get("/ws", handler.WsHandler(hub))
 
 	r.With(mw.RequireAuth(ts)).Get("/api/users", handler.ListUsers(db))
+	r.With(mw.RequireAuth(ts)).Get("/api/me", handler.Me(db))
 	r.With(mw.RequireAuth(ts)).Get("/api/conversation/{user_id}", handler.GetConversation(db))
 	r.Get("/api/users/active", handler.ListActiveUsers(db, hub))
 
