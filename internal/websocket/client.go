@@ -83,7 +83,7 @@ func (c *Client) readPump() {
 				c.forceClose("invalid token")
 				return
 			}
-			c.Send(ConnectFrame())
+			c.Send(ConnectFrame(c.userID))
 			if c.userID != 0 {
 				c.hub.MarkOnline(c)
 			}

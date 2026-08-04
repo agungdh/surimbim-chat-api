@@ -3,6 +3,7 @@ package websocket
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -78,12 +79,13 @@ func (f *Frame) Serialize() []byte {
 	return buf.Bytes()
 }
 
-func ConnectFrame() *Frame {
+func ConnectFrame(userID int64) *Frame {
 	return &Frame{
 		Command: "CONNECTED",
 		Headers: map[string]string{
-			"version":  "1.2",
+			"version":    "1.2",
 			"heart-beat": "0,0",
+			"user-id":    strconv.FormatInt(userID, 10),
 		},
 	}
 }
