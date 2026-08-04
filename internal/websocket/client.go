@@ -90,7 +90,7 @@ func (c *Client) readPump() {
 			continue
 		}
 
-		if !c.isAuthorized(frame) {
+		if !c.isAuthorized() {
 			c.forceClose("invalid token")
 			return
 		}
@@ -115,10 +115,7 @@ func (c *Client) authenticate(frame *Frame) bool {
 	return true
 }
 
-func (c *Client) isAuthorized(frame *Frame) bool {
-	if token := frame.Headers["token"]; token != "" {
-		c.token = token
-	}
+func (c *Client) isAuthorized() bool {
 	if c.token == "" {
 		return false
 	}
