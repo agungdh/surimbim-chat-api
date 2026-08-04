@@ -13,6 +13,11 @@ import (
 	"surimbim-chat-api/internal/model"
 )
 
+const (
+	defaultHistoryLimit = 50
+	maxHistoryLimit     = 100
+)
+
 type Hub struct {
 	db          *bun.DB
 	tokenStore  *auth.TokenStore
@@ -224,15 +229,46 @@ func (h *Hub) routeHistory(c *Client, dest string, frame *Frame) {
 		return
 	}
 
-	var messages []model.Message
-	err = h.db.NewSelect().Model(&messages).
+	limit := defaultHistoryLimit
+	if s := frame.Headers["limit"]; s != "" {
+		if l, err := strconv.Atoi(s); err == nil && l > 0 && l <= maxHistoryLimit {
+			limit = l
+		}
+	}
+
+	query := h.db.NewSelect().Model((*model.Message)(nil)).
 		Where("conversation_id = ?", convID).
-		Order("id ASC").
-		Scan(context.Background())
-	if err != nil {
+		Order("id DESC").
+		Limit(limit + 1)
+
+	if cursor := frame.Headers["cursor"]; cursor != "" {
+		id, err := strconv.ParseInt(cursor, 10, 64)
+		if err != nil {
+			c.Send(ErrorFrameFor(frame, "invalid cursor"))
+			return
+		}
+		query = query.Where("id < ?", id)
+	}
+
+	var messages []model.Message
+	if err := query.Scan(context.Background()); err != nil {
 		log.Printf("failed to load history: %v", err)
 		c.Send(ErrorFrameFor(frame, "failed to load history"))
 		return
+	}
+
+	hasMore := len(messages) > limit
+	if hasMore {
+		messages = messages[:limit]
+	}
+
+	nextCursor := ""
+	if len(messages) > 0 {
+		nextCursor = strconv.FormatInt(messages[len(messages)-1].ID, 10)
+	}
+	// query returns newest first; flip to chronological order
+	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
+		messages[i], messages[j] = messages[j], messages[i]
 	}
 
 	resp, err := json.Marshal(messages)
@@ -243,6 +279,10 @@ func (h *Hub) routeHistory(c *Client, dest string, frame *Frame) {
 
 	respFrame := MessageFrame("/app/history", resp)
 	respFrame.Headers["conversation-id"] = strconv.FormatInt(convID, 10)
+	respFrame.Headers["has-more"] = strconv.FormatBool(hasMore)
+	if nextCursor != "" {
+		respFrame.Headers["next-cursor"] = nextCursor
+	}
 	if clientID := frame.Headers["client-id"]; clientID != "" {
 		respFrame.Headers["client-id"] = clientID
 	}
