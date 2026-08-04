@@ -124,3 +124,14 @@ func ErrorFrameFor(frame *Frame, message string) *Frame {
 	}
 	return &Frame{Command: "ERROR", Headers: headers}
 }
+
+func ReceiptFrame(frame *Frame) *Frame {
+	headers := map[string]string{}
+	if dest := frame.Headers["destination"]; dest != "" {
+		headers["destination"] = dest
+	}
+	if receipt := frame.Headers["receipt"]; receipt != "" {
+		headers["receipt"] = receipt
+	}
+	return &Frame{Command: "RECEIPT", Headers: headers}
+}

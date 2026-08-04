@@ -153,6 +153,7 @@ func (h *Hub) HandleFrame(c *Client, frame *Frame) {
 		}
 
 		h.Subscribe(dest, c)
+		c.Send(ReceiptFrame(frame))
 
 	case "UNSUBSCRIBE":
 		dest := frame.Headers["destination"]
