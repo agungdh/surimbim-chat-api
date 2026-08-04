@@ -184,6 +184,11 @@ func (h *Hub) routeSend(c *Client, dest string, frame *Frame) {
 		return
 	}
 
+	if !h.userInConversation(c.userID, payload.ConversationID) {
+		c.Send(ErrorFrame("forbidden"))
+		return
+	}
+
 	msg := &model.Message{
 		ConversationID: payload.ConversationID,
 		SenderID:       c.userID,

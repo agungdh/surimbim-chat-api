@@ -1,12 +1,16 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"log"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/uptrace/bun"
 	"surimbim-chat-api/internal/auth"
+	"surimbim-chat-api/internal/model"
 )
 
 type Hub struct {
@@ -140,6 +144,14 @@ func (h *Hub) HandleFrame(c *Client, frame *Frame) {
 		if dest == "" {
 			return
 		}
+
+		if convID, ok := conversationIDFromDest(dest); ok {
+			if !h.userInConversation(c.userID, convID) {
+				c.Send(ErrorFrame("forbidden"))
+				return
+			}
+		}
+
 		h.Subscribe(dest, c)
 
 	case "UNSUBSCRIBE":
@@ -164,4 +176,30 @@ func (h *Hub) DB() *bun.DB {
 
 func (h *Hub) TokenStore() *auth.TokenStore {
 	return h.tokenStore
+}
+
+func conversationIDFromDest(dest string) (int64, bool) {
+	const prefix = "/topic/conversation."
+
+	idStr, ok := strings.CutPrefix(dest, prefix)
+	if !ok || idStr == "" {
+		return 0, false
+	}
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+
+	return id, true
+}
+
+func (h *Hub) userInConversation(userID, convID int64) bool {
+	var conv model.Conversation
+	err := h.db.NewSelect().Model(&conv).Where("id = ?", convID).Scan(context.Background())
+	if err != nil {
+		return false
+	}
+
+	return conv.User1ID == userID || conv.User2ID == userID
 }
