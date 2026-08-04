@@ -40,6 +40,9 @@ func (c *Client) UserID() int64 {
 }
 
 func (c *Client) Send(f *Frame) {
+	defer func() {
+		recover()
+	}()
 	select {
 	case c.send <- f:
 	default:
@@ -64,13 +67,13 @@ func (c *Client) Close() {
 	c.closeOnce.Do(func() {
 		close(c.send)
 		c.hub.RemoveClient(c)
+		c.conn.Close()
 	})
 }
 
 func (c *Client) readPump() {
 	defer func() {
 		c.Close()
-		c.conn.Close()
 	}()
 
 	c.conn.SetReadLimit(maxMessageSize)

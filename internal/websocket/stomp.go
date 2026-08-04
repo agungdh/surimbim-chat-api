@@ -20,47 +20,59 @@ func ParseFrame(raw []byte) (*Frame, error) {
 
 	raw = bytes.TrimSuffix(raw, []byte{0})
 
-	parts := strings.SplitN(string(raw), "\n", 2)
-	if len(parts) == 0 {
-		return nil, fmt.Errorf("no command")
+	nl := bytes.IndexByte(raw, '\n')
+	if nl == -1 {
+		return nil, fmt.Errorf("missing newline after command")
 	}
 
-	f := &Frame{
-		Command: strings.TrimSpace(parts[0]),
-		Headers: make(map[string]string),
+	command := strings.TrimSpace(string(raw[:nl]))
+	if command == "" {
+		return nil, fmt.Errorf("empty command")
 	}
 
-	if len(parts) == 1 {
+	f := &Frame{Command: command, Headers: make(map[string]string)}
+	rest := raw[nl+1:]
+	if len(rest) == 0 {
 		return f, nil
 	}
 
-	remaining := parts[1]
-	bodyIdx := strings.Index(remaining, "\n\n")
-	if bodyIdx != -1 {
-		headerBlock := remaining[:bodyIdx]
-		f.parseHeaders(headerBlock)
-		f.Body = []byte(remaining[bodyIdx+2:])
-	} else {
-		f.parseHeaders(remaining)
+	pos := 0
+	for {
+		nl := bytes.IndexByte(rest[pos:], '\n')
+		if nl == -1 {
+			if line := strings.TrimSpace(string(rest[pos:])); line != "" {
+				f.addHeader(line)
+			}
+			break
+		}
+		line := strings.TrimSpace(string(rest[pos : pos+nl]))
+		pos += nl + 1
+		if line == "" {
+			f.Body = rest[pos:]
+			break
+		}
+		f.addHeader(line)
+	}
+
+	// honour content-length so bodies containing \n survive transport
+	if cl := f.Headers["content-length"]; cl != "" {
+		if n, err := strconv.Atoi(cl); err == nil && n >= 0 && n <= len(f.Body) {
+			f.Body = f.Body[:n]
+		}
 	}
 
 	return f, nil
 }
 
-func (f *Frame) parseHeaders(block string) {
-	for _, line := range strings.Split(block, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		idx := strings.Index(line, ":")
-		if idx == -1 {
-			continue
-		}
-		k := strings.TrimSpace(line[:idx])
-		v := strings.TrimSpace(line[idx+1:])
-		f.Headers[k] = v
+func (f *Frame) addHeader(line string) {
+	line = strings.TrimSuffix(line, "\r")
+	idx := strings.Index(line, ":")
+	if idx == -1 {
+		return
 	}
+	k := strings.TrimSpace(line[:idx])
+	v := strings.TrimSpace(line[idx+1:])
+	f.Headers[k] = v
 }
 
 func (f *Frame) Serialize() []byte {
@@ -94,7 +106,7 @@ func MessageFrame(destination string, body []byte) *Frame {
 	return &Frame{
 		Command: "MESSAGE",
 		Headers: map[string]string{
-			"destination": destination,
+			"destination":  destination,
 			"content-type": "application/json",
 		},
 		Body: body,

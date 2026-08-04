@@ -24,6 +24,8 @@ type Hub struct {
 	mu          sync.RWMutex
 	subscribers map[string]map[*Client]struct{}
 	online      map[int64]map[*Client]struct{}
+	convMu      sync.RWMutex
+	convCache   map[int64][2]int64
 }
 
 func NewHub(db *bun.DB, ts *auth.TokenStore) *Hub {
@@ -32,6 +34,7 @@ func NewHub(db *bun.DB, ts *auth.TokenStore) *Hub {
 		tokenStore:  ts,
 		subscribers: make(map[string]map[*Client]struct{}),
 		online:      make(map[int64]map[*Client]struct{}),
+		convCache:   make(map[int64][2]int64),
 	}
 }
 
@@ -204,11 +207,22 @@ func conversationIDFromDest(dest string) (int64, bool) {
 }
 
 func (h *Hub) userInConversation(userID, convID int64) bool {
+	h.convMu.RLock()
+	participants, ok := h.convCache[convID]
+	h.convMu.RUnlock()
+	if ok {
+		return userID == participants[0] || userID == participants[1]
+	}
+
 	var conv model.Conversation
 	err := h.db.NewSelect().Model(&conv).Where("id = ?", convID).Scan(context.Background())
 	if err != nil {
 		return false
 	}
+
+	h.convMu.Lock()
+	h.convCache[convID] = [2]int64{conv.User1ID, conv.User2ID}
+	h.convMu.Unlock()
 
 	return conv.User1ID == userID || conv.User2ID == userID
 }

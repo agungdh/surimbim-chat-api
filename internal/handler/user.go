@@ -1,13 +1,12 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/uptrace/bun"
+	mw "surimbim-chat-api/internal/middleware"
 	"surimbim-chat-api/internal/model"
 	"surimbim-chat-api/internal/websocket"
-	mw "surimbim-chat-api/internal/middleware"
 )
 
 func Me(db *bun.DB) http.HandlerFunc {
@@ -20,12 +19,11 @@ func Me(db *bun.DB) http.HandlerFunc {
 			Where("id = ?", myID).
 			Scan(r.Context())
 		if err != nil {
-			http.Error(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
+			respondError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(user)
+		respondJSON(w, http.StatusOK, user)
 	}
 }
 
@@ -34,11 +32,10 @@ func ListUsers(db *bun.DB) http.HandlerFunc {
 		var users []model.User
 		err := db.NewSelect().Model(&users).Column("id", "username", "name", "created_at").Scan(r.Context())
 		if err != nil {
-			http.Error(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
+			respondError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(users)
+		respondJSON(w, http.StatusOK, users)
 	}
 }
 
@@ -46,8 +43,7 @@ func ListActiveUsers(db *bun.DB, hub *websocket.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ids := hub.OnlineUserIDs()
 		if len(ids) == 0 {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode([]model.User{})
+			respondJSON(w, http.StatusOK, []model.User{})
 			return
 		}
 
@@ -57,10 +53,9 @@ func ListActiveUsers(db *bun.DB, hub *websocket.Hub) http.HandlerFunc {
 			Column("id", "username", "name", "created_at").
 			Scan(r.Context())
 		if err != nil {
-			http.Error(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
+			respondError(w, http.StatusInternalServerError, "internal server error")
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(users)
+		respondJSON(w, http.StatusOK, users)
 	}
 }

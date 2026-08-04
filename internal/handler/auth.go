@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 
 	"github.com/uptrace/bun"
 	"surimbim-chat-api/internal/auth"
@@ -26,24 +25,24 @@ func Login(db *bun.DB, ts *auth.TokenStore, cfg *config.Config) http.HandlerFunc
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req loginRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+			respondError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 
 		if req.Username == "" || req.Password == "" {
-			http.Error(w, `{"error":"username and password required"}`, http.StatusBadRequest)
+			respondError(w, http.StatusBadRequest, "username and password required")
 			return
 		}
 
 		var user model.User
 		err := db.NewSelect().Model(&user).Where("username = ?", req.Username).Scan(r.Context())
 		if err != nil {
-			http.Error(w, `{"error":"invalid credentials"}`, http.StatusUnauthorized)
+			respondError(w, http.StatusUnauthorized, "invalid credentials")
 			return
 		}
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-			http.Error(w, `{"error":"invalid credentials"}`, http.StatusUnauthorized)
+			respondError(w, http.StatusUnauthorized, "invalid credentials")
 			return
 		}
 
@@ -55,15 +54,14 @@ func Login(db *bun.DB, ts *auth.TokenStore, cfg *config.Config) http.HandlerFunc
 			Path:     "/",
 			HttpOnly: true,
 			SameSite: http.SameSiteLaxMode,
-			MaxAge:   int((24 * time.Hour).Seconds()),
+			MaxAge:   int(cfg.SessionTTL.Seconds()),
 		}
 		if cfg.ENV == "prod" {
 			cookie.Secure = true
 		}
 		http.SetCookie(w, cookie)
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(loginResponse{Token: token})
+		respondJSON(w, http.StatusOK, loginResponse{Token: token})
 	}
 }
 
