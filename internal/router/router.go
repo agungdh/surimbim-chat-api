@@ -21,6 +21,7 @@ func New(cfg *config.Config, hub *websocket.Hub) http.Handler {
 		r.Use(middleware.Logger)
 	}
 	r.Use(middleware.Recoverer)
+	r.Use(mw.CORS)
 
 	r.Get("/health", handler.Health())
 
