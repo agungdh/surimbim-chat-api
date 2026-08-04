@@ -27,10 +27,6 @@ func GetConversation(db *bun.DB) http.HandlerFunc {
 		}
 
 		myID := mw.UserIDFromCtx(r.Context())
-		if myID == otherID {
-			http.Error(w, `{"error":"cannot check conversation with yourself"}`, http.StatusBadRequest)
-			return
-		}
 
 		var other model.User
 		err = db.NewSelect().Model(&other).
