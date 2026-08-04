@@ -22,6 +22,7 @@ const (
 
 type Client struct {
 	id        string
+	token     string
 	userID    int64
 	hub       *Hub
 	conn      *websocket.Conn
@@ -78,8 +79,9 @@ func (c *Client) readPump() {
 		}
 
 		if frame.Command == "CONNECT" || frame.Command == "STOMP" {
-			if uid := frame.Headers["user-id"]; uid != "" {
-				fmt.Sscanf(uid, "%d", &c.userID)
+			if !c.authenticate(frame) {
+				c.forceClose("invalid token")
+				return
 			}
 			c.Send(ConnectFrame())
 			if c.userID != 0 {
@@ -88,8 +90,55 @@ func (c *Client) readPump() {
 			continue
 		}
 
+		if !c.isAuthorized(frame) {
+			c.forceClose("invalid token")
+			return
+		}
+
 		c.hub.HandleFrame(c, frame)
 	}
+}
+
+func (c *Client) authenticate(frame *Frame) bool {
+	token := frame.Headers["token"]
+	if token == "" {
+		return false
+	}
+
+	userID, ok := c.hub.TokenStore().Validate(token)
+	if !ok {
+		return false
+	}
+
+	c.token = token
+	c.userID = userID
+	return true
+}
+
+func (c *Client) isAuthorized(frame *Frame) bool {
+	if token := frame.Headers["token"]; token != "" {
+		c.token = token
+	}
+	if c.token == "" {
+		return false
+	}
+
+	userID, ok := c.hub.TokenStore().Validate(c.token)
+	if !ok {
+		return false
+	}
+
+	c.userID = userID
+	return true
+}
+
+func (c *Client) forceClose(reason string) {
+	c.conn.WriteControl(
+		websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.ClosePolicyViolation, reason),
+		time.Now().Add(writeWait),
+	)
+	c.Close()
 }
 
 func (c *Client) writePump() {
@@ -119,7 +168,6 @@ func (c *Client) writePump() {
 
 type chatPayload struct {
 	ConversationID int64  `json:"conversation_id"`
-	SenderID       int64  `json:"sender_id"`
 	Content        string `json:"content"`
 }
 
@@ -141,7 +189,7 @@ func (h *Hub) routeSend(c *Client, dest string, frame *Frame) {
 
 	msg := &model.Message{
 		ConversationID: payload.ConversationID,
-		SenderID:       payload.SenderID,
+		SenderID:       c.userID,
 		Content:        payload.Content,
 	}
 

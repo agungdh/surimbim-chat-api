@@ -3,9 +3,11 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/joho/godotenv"
 
+	"surimbim-chat-api/internal/auth"
 	"surimbim-chat-api/internal/config"
 	"surimbim-chat-api/internal/database"
 	"surimbim-chat-api/internal/router"
@@ -24,7 +26,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	hub := websocket.NewHub(db)
+	ts := auth.NewTokenStore(24 * time.Hour)
+	hub := websocket.NewHub(db, ts)
 
 	handler := router.New(cfg, hub)
 

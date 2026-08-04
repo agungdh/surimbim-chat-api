@@ -6,18 +6,21 @@ import (
 	"sync"
 
 	"github.com/uptrace/bun"
+	"surimbim-chat-api/internal/auth"
 )
 
 type Hub struct {
 	db          *bun.DB
+	tokenStore  *auth.TokenStore
 	mu          sync.RWMutex
 	subscribers map[string]map[*Client]struct{}
 	online      map[int64]map[*Client]struct{}
 }
 
-func NewHub(db *bun.DB) *Hub {
+func NewHub(db *bun.DB, ts *auth.TokenStore) *Hub {
 	return &Hub{
 		db:          db,
+		tokenStore:  ts,
 		subscribers: make(map[string]map[*Client]struct{}),
 		online:      make(map[int64]map[*Client]struct{}),
 	}
@@ -157,4 +160,8 @@ func (h *Hub) HandleFrame(c *Client, frame *Frame) {
 
 func (h *Hub) DB() *bun.DB {
 	return h.db
+}
+
+func (h *Hub) TokenStore() *auth.TokenStore {
+	return h.tokenStore
 }

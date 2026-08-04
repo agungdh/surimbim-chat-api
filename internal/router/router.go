@@ -2,11 +2,9 @@ package router
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"surimbim-chat-api/internal/auth"
 	"surimbim-chat-api/internal/config"
 	"surimbim-chat-api/internal/handler"
 	mw "surimbim-chat-api/internal/middleware"
@@ -15,7 +13,7 @@ import (
 
 func New(cfg *config.Config, hub *websocket.Hub) http.Handler {
 	db := hub.DB()
-	ts := auth.NewTokenStore(24 * time.Hour)
+	ts := hub.TokenStore()
 
 	r := chi.NewRouter()
 
