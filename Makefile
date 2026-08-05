@@ -1,9 +1,12 @@
-.PHONY: help build build-prod clean
+.PHONY: help run build build-prod clean
 
 help: ## Show available commands
 	@echo "Usage: make [target]"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' Makefile | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+
+run: ## Run the server with go run
+	go run ./main.go
 
 build: ## Build binary (dev)
 	go build -o surimbim-chat-api .
