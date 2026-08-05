@@ -64,7 +64,6 @@ func (h *Hub) Unsubscribe(topic string, c *Client) {
 
 func (h *Hub) RemoveClient(c *Client) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 
 	for topic, clients := range h.subscribers {
 		delete(clients, c)
@@ -73,29 +72,35 @@ func (h *Hub) RemoveClient(c *Client) {
 		}
 	}
 
+	gone := false
 	if c.userID != 0 {
 		if clients, ok := h.online[c.userID]; ok {
 			delete(clients, c)
 			if len(clients) == 0 {
 				delete(h.online, c.userID)
-				go h.broadcastPresence(c.userID, "offline")
+				gone = true
 			}
 		}
+	}
+	h.mu.Unlock()
+
+	if gone {
+		h.broadcastPresence(c.userID, "offline")
 	}
 }
 
 func (h *Hub) MarkOnline(c *Client) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 
 	if h.online[c.userID] == nil {
 		h.online[c.userID] = make(map[*Client]struct{})
 	}
 	wasOffline := len(h.online[c.userID]) == 0
 	h.online[c.userID][c] = struct{}{}
+	h.mu.Unlock()
 
 	if wasOffline {
-		go h.broadcastPresence(c.userID, "online")
+		h.broadcastPresence(c.userID, "online")
 	}
 }
 
