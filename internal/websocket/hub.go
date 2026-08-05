@@ -2,7 +2,9 @@ package websocket
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"log"
 	"strconv"
 	"strings"
@@ -266,9 +268,12 @@ func (h *Hub) routeHistory(c *Client, dest string, frame *Frame) {
 
 	var messages []model.Message
 	if err := query.Scan(context.Background()); err != nil {
-		log.Printf("failed to load history: %v", err)
-		c.Send(ErrorFrameFor(frame, "failed to load history"))
-		return
+		if !errors.Is(err, sql.ErrNoRows) {
+			log.Printf("failed to load history: %v", err)
+			c.Send(ErrorFrameFor(frame, "failed to load history"))
+			return
+		}
+		messages = []model.Message{}
 	}
 
 	hasMore := len(messages) > limit
