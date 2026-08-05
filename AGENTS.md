@@ -6,7 +6,8 @@ Go backend (Go 1.26, module `surimbim-chat-api`) — chi router, uptrace/bun + S
 
 - `make run` — `go run ./main.go` (server on :8080)
 - `make build` — build binary; `make build-prod` — optimized; `make clean` — remove binary; `make help` — list targets
-- `go build ./...` / `go vet ./...` — verify build
+- `go build ./...` / `go vet ./...` — verify build (CI runs `go vet ./...` then `go build -o surimbim-chat-api .`)
+- **No tests exist** in the repo (`*_test.go`); there is no test command.
 
 ## Go toolchain
 
@@ -20,7 +21,9 @@ Go backend (Go 1.26, module `surimbim-chat-api`) — chi router, uptrace/bun + S
 
 ## Notes
 
-- Config via env: `PORT` (8080), `DB_PATH` (surimbim.db), `ENV`, `CORS_ORIGINS`, `SESSION_TTL`. See `internal/config/config.go`.
-- Auth: HttpOnly cookie `token`; WS handshake reads the cookie.
+- Config via env, loaded by `godotenv` from `.env` (optional; all keys have defaults): `PORT` (8080), `DB_PATH` (surimbim.db), `ENV`, `CORS_ORIGINS`, `SESSION_TTL`. See `internal/config/config.go`; example in committed `.env`.
+- CORS: credential-bearing headers are sent only when the request `Origin` is same-host or in the `CORS_ORIGINS` allowlist (comma-separated). The WS upgrade uses the same allowlist via `mw.OriginAllowed`. Cross-origin clients not on the list get no CORS headers.
+- `POST /api/login` is rate-limited to **10/min per client IP** (in-memory); repeated bad logins return 429.
+- Auth: HttpOnly cookie `token`; WS handshake reads the cookie. `GET /api/users/active` is intentionally **unauthenticated** (presence seed).
 - Presence: server broadcasts `/topic/presence` on online/offline **transitions** only; client must seed initial state from `GET /api/users/active`.
 - History: `GET` via WS `/app/history` (cursor pagination, `limit` header, max 100).
