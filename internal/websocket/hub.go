@@ -272,7 +272,7 @@ func (h *Hub) routeHistory(c *Client, dest string, frame *Frame) {
 	}
 
 	var messages []model.Message
-	if err := query.Scan(context.Background()); err != nil {
+	if err := query.Scan(context.Background(), &messages); err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
 			log.Printf("failed to load history: %v", err)
 			c.Send(ErrorFrameFor(frame, "failed to load history"))
